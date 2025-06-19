@@ -1,5 +1,5 @@
 ---
-pcx_content_type: navigation
+pcx_content_type: concept
 title: Multi Workers development
 sidebar:
   order: 3
@@ -7,105 +7,180 @@ head: []
 description: Learn how to develop with multiple Workers using different approaches and configurations.
 ---
 
-import { Aside, PackageManagers } from "~/components";
+import { Aside, PackageManagers, Steps, WranglerConfig } from "~/components";
 
 When building complex applications, you may need to work with multiple Workers during development. This guide covers the different approaches for running multiple Workers locally and when to use each approach.
 
-## Running in a single process
+## Single process
 
-Run multiple Workers in a single process by passing multiple configuration files to `wrangler dev`. Each configuration should point to a different Worker:
+You can run multiple Workers in a single process by passing multiple configuration files to your dev server.
 
-<PackageManagers
-  type="exec"
-  pkg="wrangler"
-  args="dev -c wrangler.toml -c ../other-worker/wrangler.jsonc"
-/>
+### Example setup
 
-The first configuration will be treated as the **primary Worker**, exposed over HTTP at `http://localhost:8787`. Additional configurations become **secondary Workers**, accessible only via service bindings from the primary Worker.
+<Steps>
 
-### Using Vite plugin
+1. Create separate configuration files for each Worker:
 
-If you are using the Vite plugin, configure `auxiliaryWorkers` in your Vite configuration:
+   **Primary Worker** (e.g. `wrangler.toml`)
 
-```js title="vite.config.js"
-import { defineConfig } from "vite";
-import { cloudflare } from "@cloudflare/vite-plugin";
+  <WranglerConfig>
+    ```toml title="wrangler.toml"
+    name = "worker-a"
+    main = "./src/index.ts"
+    
+    [[services]]
+    binding = "WORKER_B"
+    service = "worker-b"
+    ```
+  </WranglerConfig>
 
-export default defineConfig({
-  plugins: [
-    cloudflare({
-      configPath: "./wrangler.toml",
-      auxiliaryWorkers: [
-        {
-          configPath: "../other-worker/wrangler.jsonc",
-        },
-      ],
-    }),
-  ],
-});
-```
 
-<Aside type="note">
-Auxiliary Workers are additional Workers used as part of your application. Use [service bindings](/workers/runtime-apis/bindings/service-bindings/) to call auxiliary Workers from your main Worker. All requests are routed through your primary Worker.
-</Aside>
+  **Auxiliary Worker** (e.g. `../other-worker/wrangler.jsonc`)
 
-## Running in multiple processes
+  <WranglerConfig>
+  ```toml title="../other-worker/wrangler.toml"
+  name = "worker-b"
+  main = "./src/index.ts"
+  ```
+  </WranglerConfig>
 
-Run separate development sessions for independent Workers. Each session runs in its own process with its own configuration:
+2. Start a dev session:
 
-<PackageManagers
-  type="exec"
-  pkg="wrangler"
-  args="dev"
-  comment="Terminal 1 - First Worker"
-/>
+   **Using Wrangler**
+   
+   <PackageManagers
+     type="exec"
+     pkg="wrangler"
+     args="dev -c wrangler.toml -c ../other-worker/wrangler.jsonc"
+   />
 
-<PackageManagers
-  type="exec"
-  pkg="vite"
-  args="dev"
-  comment="Terminal 2 - Second Worker"
-/>
+   The first config is treated as the primary Worker, exposed at `http://localhost:8787`. Additional configs are run as auxiliary Workers, available via service bindings or tail consumers from the primary Worker.
 
-Each development session runs independently, but you can still connect them using service bindings.
+   **Using the Vite plugin**
+   
+   Configure `auxiliaryWorkers` in your Vite configuration:
+   
+   ```js title="vite.config.js"
+   import { defineConfig } from "vite";
+   import { cloudflare } from "@cloudflare/vite-plugin";
+   
+   export default defineConfig({
+     plugins: [
+       cloudflare({
+         configPath: "./wrangler.toml",
+         auxiliaryWorkers: [
+           {
+             configPath: "../other-worker/wrangler.jsonc",
+           },
+         ],
+       }),
+     ],
+   });
+   ```
+   
+   Then run:
+   
+   <PackageManagers type="exec" pkg="vite" args="dev" />
+
+</Steps>
+
+### When to use
+
+Use this approach when:
+
+- Workers are closely related or part of the same application
+- You want the simplest development setup
+- You need to access a Durable Object namespace from another Worker using `script_name`
+
+## Multiple processes
+
+You can also run each Worker in a separate dev session, each with its own terminal and configuration.
+
+### Example setup
+
+<Steps>
+
+1. Open separate terminal windows for each Worker.
+
+2. Run each dev session independently:
+
+   **Terminal 1 - First Worker**
+   
+   <PackageManagers
+     type="exec"
+     pkg="wrangler"
+     args="dev"
+   />
+
+   **Terminal 2 - Second Worker**
+   
+   <PackageManagers
+     type="exec"
+     pkg="wrangler"
+     args="dev"
+   />
+
+   These sessions run in different processes, but can still communicate with each other if configured as service bindings or tail consumers.
+
+</Steps>
+
+### When to use
+
+Use this approach when:
+
+- Each Worker requires a different build configuration
+- Different teams maintain the Workers
+- A Worker only occasionally accesses another, and you prefer the flexibility to run them separately
+
+### Limitations
+
+The following features have different levels of support across approaches:
+
+| Feature          | Single process (Wrangler) | Multiple processes (Wrangler) | Single process (Vite) |
+|------------------|:-------------------------:|:----------------------------:|:--------------------:|
+| Service Bindings | ✅ Full support            | ❌ Not supported             | ✅ Full support      |
+| Durable Objects  | ⚠️ No RPC support          | ❌ Not supported             | ❌ Not supported     |
+| Tail Consumers   | ✅ Full support            | ❌ Not supported             | ✅ Full support      |
+
+We are actively working to address these limitations in future releases.
 
 ## Hybrid approach
 
-Combine single and multiple process approaches. For example, run multiple Workers through Vite while connecting to a separate Worker running in its own `wrangler dev` session:
+You can mix the two approaches. For example, run a primary Worker and its auxiliary Workers through `vite dev`, while connecting to another Worker running separately in a `wrangler dev` session.
 
-<PackageManagers
-  type="exec"
-  pkg="vite dev"
-  comment="Terminal 1 - Vite with auxiliary Workers"
-/>
+### Example setup
 
-<PackageManagers
-  type="exec"
-  pkg="wrangler dev"
-  comment="Terminal 2 - Separate Worker"
-/>
+<Steps>
 
-This approach provides flexibility when working with a mix of related and independent Workers.
+1. Set up Vite with auxiliary Workers as shown above.
 
-## When to use each approach
+2. Run your development sessions in separate terminals:
 
-### Single process
-Use when:
-- Workers are closely related or part of the same application
-- You need full support for service bindings, Durable Objects, and Tail consumers
-- You want the simplest development setup
+   **Terminal 1 - Vite with auxiliary Workers**
+   
+   <PackageManagers
+     type="exec"
+     pkg="vite"
+     args="dev"
+   />
 
-### Multiple processes
-Use when:
-- Workers are independent projects with different build setups
-- Different teams maintain the Workers
-- You need flexibility to run Workers together only when needed
+   **Terminal 2 - Separate Worker**
+   
+   <PackageManagers
+     type="exec"
+     pkg="wrangler"
+     args="dev"
+   />
 
-<Aside type="caution">
-The multiple processes approach has limitations:
-- Only `wrangler dev` sessions with a single configuration support cross-process Durable Objects namespaces
-- Cross-process communication is restricted to fetch requests only (no RPC calls)
-- `wrangler dev` with multiple configurations does not support hybrid mode bindings to Workers running in different processes
-</Aside>
+   This approach provides flexibility when working with a mix of related and independent Workers.
 
-We are actively working to address these limitations in future releases.
+</Steps>
+
+### When to use
+
+Use this approach when:
+
+- You have an independent Worker that is shared across multiple applications
+- You are integrating with a legacy Worker that you don't want to refactor yet
+- Your project structure benefits from the flexibility of both approaches
+
