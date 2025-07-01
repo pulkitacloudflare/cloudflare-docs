@@ -195,6 +195,31 @@ If you see [`523` errors](/support/troubleshooting/http-status-codes/cloudflare-
 
 </Details>
 
+## 5. Monitor your worker
+
+Add a console.log() to monitor your worker.
+
+```js title="Updated index.js" {1}
+export default {
+	async fetch(request, env, ctx) {
+		console.log("observe your logs in real-time");
+		return new Response("Hello Worker!");
+	},
+};
+```
+Then deploy your worker.
+
+```sh
+npx wrangler deploy
+```
+
+To view real-time logs associated with any deployed Worker, run:
+
+```sh
+npx wrangler tail
+```
+`wrangler tail` surfaces the console.log() output from your live Worker so you can diagnose issues quickly. 
+
 ## Next steps
 
 To do more:
@@ -204,4 +229,5 @@ To do more:
 - Review our [Examples](/workers/examples/) and [Tutorials](/workers/tutorials/) for inspiration.
 - Set up [bindings](/workers/runtime-apis/bindings/) to allow your Worker to interact with other resources and unlock new functionality.
 - Learn how to [test and debug](/workers/testing/) your Workers.
+- Monitor your worker by [viewing logs, errors, and performance metrics](https://developers.cloudflare.com/workers/observability/) for your deployed Worker.
 - Read about [Workers limits and pricing](/workers/platform/).
