@@ -3,11 +3,22 @@ pcx_content_type: configuration
 title: Supabase
 ---
 
-import { Render, PackageManagers } from "~/components";
+import { Render, PackageManagers, Tabs, TabItem } from "~/components";
 
 [Supabase](https://supabase.com/) is an open source Firebase alternative and a PostgreSQL database service that offers real-time functionality, database backups, and extensions. With Supabase, developers can quickly set up a PostgreSQL database and build applications.
 
-## Set up an integration with Supabase
+:::note
+
+The Supabase client (`@supabase/supabase-js`) provides access to Supabase's various features, including database access. If you need access to all of the Supabase client functionality, use the Supabase client. 
+
+If you want to connect directly to the Supabase Postgres database, connect using [Hyperdrive](/hyperdrive). Hyperdrive can provide lower latencies because it performs the database connection setup and connection pooling across Cloudflare's network. Hyperdrive supports native database drivers, libraries, and ORMs, and is included in all [Workers plans](/hyperdrive/platform/pricing/). Learn more about Hyperdrive in [How Hyperdrive Works](/hyperdrive/configuration/how-hyperdrive-works/). 
+
+:::
+
+<Tabs>
+	    <TabItem label="Supabase client">
+
+### Supabase client setup
 
 To set up an integration with Supabase:
 
@@ -41,7 +52,7 @@ To set up an integration with Supabase:
    # Add the Supabase URL as a secret
    npx wrangler secret put SUPABASE_URL
    # When prompted, paste your Supabase project URL
-   
+
    # Add the Supabase anon key as a secret
    npx wrangler secret put SUPABASE_KEY
    # When prompted, paste your Supabase anon/public key
@@ -54,20 +65,30 @@ To set up an integration with Supabase:
 6. The following example shows how to make a query to your Supabase database in a Worker. The credentials needed to connect to Supabase have been added as secrets to your Worker.
 
    ```js
-   import { createClient } from '@supabase/supabase-js';
+   import { createClient } from "@supabase/supabase-js";
 
    export default {
-     async fetch(request, env) {
-       const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
-       const { data, error } = await supabase.from("countries").select('*');
-       if (error) throw error;
-       return new Response(JSON.stringify(data), {
-         headers: {
-           "Content-Type": "application/json",
-         },
-       });
-     },
+   	async fetch(request, env) {
+   		const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
+   		const { data, error } = await supabase.from("countries").select("*");
+   		if (error) throw error;
+   		return new Response(JSON.stringify(data), {
+   			headers: {
+   				"Content-Type": "application/json",
+   			},
+   		});
+   	},
    };
    ```
 
 To learn more about Supabase, refer to [Supabase's official documentation](https://supabase.com/docs).
+
+</TabItem>
+	<TabItem label="Hyperdrive">
+
+When connecting to Supabase with Hyperdrive, you connect directly to the underlying Postgres database. This provides the lowest latency for databsae queries when accessed server-side from Workers. To connect to Supabase using [Hyperdrive](/hyperdrive), follow these steps:
+
+         <Render file="supabase-partial" product="hyperdrive"/>
+    </TabItem>
+
+</Tabs>
