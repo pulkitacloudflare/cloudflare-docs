@@ -1,0 +1,37 @@
+---
+title: AI Crawl Control
+description: Configure 402 responses for blocked AI crawlers
+date: 2025-08-27T11:00:00Z
+---
+
+You can now return HTTP 402 "Payment Required" responses when blocking AI crawlers, enabling direct communication with crawler operators about licensing terms.
+When blocking AI crawlers, you can configure:
+- **Response code:** Choose between 403 Forbidden or 402 Payment Required
+- **Response body:** Add a custom message with your licensing contact information
+
+
+Example 402 response:
+
+<TypeScriptExample>
+
+```ts title="worker.ts"
+HTTP 402 Payment Required
+Date: Mon, 24 Aug 2025 12:56:49 GMT
+Content-type: application/json
+Server: cloudflare
+Cf-Ray: 967e8da599d0c3fa-EWR
+Cf-Team: 2902f6db750000c3fa1e2ef400000001
+{
+"message": "To access this content, email partnerships@yoursite.com or call 1-800-LICENSE.
+}
+```
+</TypeScriptExample>
+
+**How it works:**
+
+- **For all users:**
+  - If you're not using the ["Block AI bots"](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/#block-ai-bots) setting, nothing changes today. Blocked crawlers from the AI Audit dashboard will continue to see 403 forbidden responses by default.
+  - If you have the ["Block AI bots"](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/#block-ai-bots) set to block on all pages, AI training crawlers will now automatically see 402 Payment Required status code.
+- **For paid users:** Block individual crawlers and customize your 402 message from AI Crawl Control > Settings > Block response
+
+This provides a way to communicate information to crawlers instead of just blocking them.
